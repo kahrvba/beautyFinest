@@ -39,8 +39,8 @@ const fetchWithRetry = async (url: string, retries = 5) => {
 
 export async function GET() {
     try {
-        const url = "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p4432023.m570.l1313&_nkw=beauty+products&_sacat=0";
-        const data = await fetchWithRetry(url);  // Fetch with proxy and retry
+        const url = "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2334524.m570.l1311&_nkw=beauty+products&_sacat=0&_odkw=beauty+produsts&_osacat=0";
+        const data = await fetchWithRetry(url);
         const $ = cheerio.load(data);
 
         const products: {
@@ -54,15 +54,18 @@ export async function GET() {
             availability: string;
         }[] = [];
 
-        $(".s-main-slot .s-result-item").each((_, element) => {
+        // Update selectors based on eBay's structure
+        $(".s-item").each((_, element) => {
             const name = $(element).find(".s-item__title").text().trim();
+            console.log("Name:", name);
             const price = $(element).find(".s-item__price").text().trim();
-            const image = $(element).find(".s-item__image-img").attr("src");
-            const type = $(element).find(".s-item__subtitle").text().trim(); // Extract type if available
-            const description = $(element).find(".s-item__description").text().trim(); // Extract description if available
-            const rate = $(element).find(".x-star-rating").attr("aria-label")?.trim() || "No rating"; // Extract rating
-            const productionYear = "Not available"; // Placeholder, as this info may not be directly on the page
-            const availability = "In stock"; // Placeholder for availability (could be dynamic depending on product availability)
+            console.log("Price:", price);
+            const image = $(element).find(".s-item__image-img").attr("src") || "";
+            const type = "eBay Product"; // eBay does not categorize like Amazon
+            const description = name; // Placeholder
+            const rate = "Not Rated"; // eBay does not typically show ratings
+            const productionYear = "Unknown"; // Placeholder
+            const availability = $(element).find(".s-item__availability").text().trim() || "Unknown";
 
             if (name && price && image) {
                 products.push({
@@ -73,16 +76,16 @@ export async function GET() {
                     description,
                     rate,
                     productionYear,
-                    availability
+                    availability,
                 });
             }
         });
 
         await delay(5000); // Add delay to avoid rate-limiting
-
         return NextResponse.json(products);
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Failed to scrape eBay" }, { status: 500 });
     }
 }
+

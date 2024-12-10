@@ -16,9 +16,11 @@ export default function HomePage() {
 
             try {
                 // Fetch from all three sources
-                const amazonRes = await fetch("/api/scrape-amazon");
                 const ebayRes = await fetch("/api/scrape-ebay");
                 const trendyolRes = await fetch("/api/scrape-trendyol");
+                const amazonRes = await fetch("/api/scrape-amazon");
+
+
 
                 // Check if the responses are successful
                 if (!amazonRes.ok || !ebayRes.ok || !trendyolRes.ok) {
@@ -132,7 +134,7 @@ export default function HomePage() {
                     <div className="grid grid-cols-3 gap-4 p-4">
                         {products.map((product, index) => (
                             <div key={index} className="border p-4 rounded-md shadow-lg">
-                                <img src={product.image} alt={product.name} className="w-full h-48 object-cover"/>
+                                <img src={product.image} alt={product.name} className="w-full h-48 object-cover object-center" />
                                 <h3 className="text-lg font-semibold mt-2">{product.name}</h3>
                                 <p className="text-sm text-gray-600">{product.price}</p>
                                 <p className="text-sm text-gray-500">Type: {product.type}</p>

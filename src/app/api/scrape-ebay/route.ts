@@ -37,10 +37,8 @@ const fetchWithRetry = async (url: string, retries = 5) => {
 
 export async function GET() {
     try {
-        const url = "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2334524.m570.l1311&_nkw=beauty+products&_sacat=0&_odkw=beauty+produsts&_osacat=0";
-        const data = await fetchWithRetry(url);
-        const $ = cheerio.load(data);
-
+        const baseUrl = "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2334524.m570.l1311&_nkw=beauty+products&_sacat=0&_odkw=beauty+produsts&_osacat=0&page=";
+        const totalPages = 5; // Adjust this value for how many pages you want to scrape
         const products: {
             name: string;
             price: string;
@@ -52,41 +50,40 @@ export async function GET() {
             availability: string;
         }[] = [];
 
-        // Update selectors based on eBay's structure
-        $(".s-item").each((_, element) => {
-            const name = $(element).find(".s-item__title").text().trim();
-            const price = $(element).find(".s-item__price").text().trim();
-            const image = $(element).find(".s-item__image-wrapper img").attr("data-src") || $(element).find(".s-item__image-wrapper img").attr("data-large-src") || "https://via.placeholder.com/150";
-            const type = "eBay Product"; // eBay does not categorize like Amazon
-            const description = name; // Placeholder
-            const rate = "Not Rated"; // eBay does not typically show ratings
-            const productionYear = "Unknown"; // Placeholder
-            const availability = $(element).find(".s-item__availability").text().trim() || "Unknown";
+        for (let page = 1; page <= totalPages; page++) {
+            const url = `${baseUrl}${page}`;
+            const data = await fetchWithRetry(url);
+            const $ = cheerio.load(data);
 
-            // Debugging: Log each product to ensure it's valid
-            console.log("Product:", { name, price, image, availability });
+            $(".s-item").each((_, element) => {
+                const name = $(element).find(".s-item__title").text().trim();
+                const price = $(element).find(".s-item__price").text().trim();
+                const image =
+                    $(element).find(".s-item__image-wrapper img").attr("src") ||
+                    $(element).find(".s-item__image-wrapper img").attr("data-src") ||
+                    $(element).find(".s-item__image-wrapper img").attr("data-large-src") ||
+                    "https://via.placeholder.com/150";
+                const type = "eBay Product"; // eBay does not categorize like Amazon
+                const description = name; // Placeholder
+                const rate = "3.5 out of 5"; // eBay does not typically show ratings
+                const productionYear = "2024"; // Placeholder
+                const availability = $(element).find(".s-item__availability").text().trim() || "Available at ebay";
 
-            // Push valid products into the array (even if image is missing)
-            if (name && price) {
-                products.push({
-                    name,
-                    price,
-                    image,
-                    type,
-                    description,
-                    rate,
-                    productionYear,
-                    availability,
-                });
-            } else {
-                console.log("Skipping invalid product:", { name, price, image });
-            }
-        });
+                if (name && price) {
+                    products.push({
+                        name,
+                        price,
+                        image,
+                        type,
+                        description,
+                        rate,
+                        productionYear,
+                        availability,
+                    });
+                }
+            });
+        }
 
-        // Debugging: Log the final products array
-        console.log("Final Products Array:", products);
-
-        await delay(5000); // Add delay to avoid rate-limiting
         return NextResponse.json(products, { status: 200 });
     } catch (error) {
         console.error(error);

@@ -16,10 +16,13 @@ interface Product {
 }
 
 export default function HomePage() {
-    // Initialize products state with the correct type
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const [userRatings, setUserRatings] = useState<{ [key: string]: number }>({});
+    const [currency, setCurrency] = useState<string>("USD");
+    const [favoriteWebsites, setFavoriteWebsites] = useState<string[]>([]);
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -27,29 +30,21 @@ export default function HomePage() {
             setError(null);
 
             try {
-                // Fetch data from APIs
                 const ebayRes = await fetch("/api/scrape-ebay");
-                const trendyolRes = await fetch("/api/scrape-trendyol");
                 const amazonRes = await fetch("/api/scrape-amazon");
 
-                // Check if responses are ok
-                if (!amazonRes.ok || !ebayRes.ok || !trendyolRes.ok) {
+                if (!amazonRes.ok || !ebayRes.ok) {
                     throw new Error("Failed to fetch one or more products");
                 }
 
-                // Parse JSON data
                 const amazonProducts = (await amazonRes.json()) as Product[];
                 const ebayProducts = (await ebayRes.json()) as Product[];
-                const trendyolProducts = (await trendyolRes.json()) as Product[];
 
-                // Combine all products
                 const allProducts = [
                     ...amazonProducts,
                     ...ebayProducts,
-                    ...trendyolProducts
                 ];
 
-                // Set products with default values
                 setProducts(
                     allProducts.map((product) => ({
                         name: product.name || 'Unnamed Product',
@@ -73,19 +68,65 @@ export default function HomePage() {
 
         fetchProducts();
 
-        }, []);
+        // Load user ratings from local storage
+        const savedRatings = localStorage.getItem('userRatings');
+        if (savedRatings) {
+            setUserRatings(JSON.parse(savedRatings));
+        }
 
+        // Load favorite websites from local storage
+        const savedFavorites = localStorage.getItem('favoriteWebsites');
+        if (savedFavorites) {
+            setFavoriteWebsites(JSON.parse(savedFavorites));
+        }
+
+        // Load currency preference from local storage
+        const savedCurrency = localStorage.getItem('currency');
+        if (savedCurrency) {
+            setCurrency(savedCurrency);
+        }
+    }, []);
+
+    const handleRateProduct = (productName: string, rating: number) => {
+        const newRatings = { ...userRatings, [productName]: rating };
+        setUserRatings(newRatings);
+        localStorage.setItem('userRatings', JSON.stringify(newRatings));
+    };
+
+    const handleCurrencyChange = (newCurrency: string) => {
+        setCurrency(newCurrency);
+        localStorage.setItem('currency', newCurrency);
+    };
+
+    const handleAddFavoriteWebsite = (website: string) => {
+        if (!favoriteWebsites.includes(website)) {
+            const newFavorites = [...favoriteWebsites, website];
+            setFavoriteWebsites(newFavorites);
+            localStorage.setItem('favoriteWebsites', JSON.stringify(newFavorites));
+        }
+    };
+
+    const filteredProducts = products.filter((product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (!userRatings[product.name] || userRatings[product.name] >= 3)
+    );
+
+    const sortedProducts = filteredProducts.sort((a, b) => {
+        const aRating = userRatings[a.name] || 0;
+        const bRating = userRatings[b.name] || 0;
+        return bRating - aRating;
+    });
 
     return (
         <>
-            {/* Header Section with Search Bar */}
             <div className="flex flex-col md:flex-row items-center justify-between bg-yellow-50 p-4">
-                {/* Search Bar */}
                 <div className="relative w-full md:w-1/3 mb-4 md:mb-0">
                     <input
                         type="search"
                         className="border-2 p-2 pr-10 w-full h-10 shadow-xl z-20 focus:outline-none"
                         placeholder="Search for a product..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -103,14 +144,11 @@ export default function HomePage() {
                     </svg>
                 </div>
 
-                {/* Website Name */}
                 <h1 className="text-3xl md:text-5xl font-libre text-center mb-4 md:mb-0">
                     BeautyFinest
                 </h1>
 
-                {/* Right Section: Sign In, Currency, Basket */}
                 <div className="flex items-center space-x-4 md:space-x-8">
-                    {/* Sign In */}
                     <div className="flex items-center">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -133,7 +171,6 @@ export default function HomePage() {
                         </h3>
                     </div>
 
-                    {/* Currency */}
                     <div className="flex items-center">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -149,10 +186,18 @@ export default function HomePage() {
                                 d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0Z"
                             />
                         </svg>
-                        <h3 className="text-lg md:text-2xl ml-2">Currency</h3>
+                        <h3 className="text-lg md:text-2xl ml-2">
+                            <select
+                                value={currency}
+                                onChange={(e) => handleCurrencyChange(e.target.value)}
+                            >
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                            </select>
+                        </h3>
                     </div>
 
-                    {/* Basket */}
                     <div className="flex items-center">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -175,14 +220,12 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* Image Slider Section */}
             <div className="relative">
                 <div className="flex-col w-full mt-6">
-                    <ImageSlider/>
+                    <ImageSlider />
                 </div>
             </div>
 
-            {/* Product Loading Section */}
             <div>
                 <h2 className="text-xl text-center my-4">Loading Products...</h2>
                 {loading ? (
@@ -191,7 +234,7 @@ export default function HomePage() {
                     <div className="text-center text-red-500">{`Error: ${error}`}</div>
                 ) : (
                     <div className="grid grid-cols-3 gap-4 p-4">
-                        {products.map((product, index) => (
+                        {sortedProducts.map((product, index) => (
                             <div key={index} className="border p-4 rounded-md shadow-lg">
                                 <img src={product.image} alt={product.name}
                                      className="w-full h-48 object-cover object-center"/>
@@ -199,13 +242,46 @@ export default function HomePage() {
                                 <p className="text-sm text-gray-600">{product.price}</p>
                                 <p className="text-sm text-gray-500">Type: {product.type}</p>
                                 <p className="text-sm text-gray-500">Description: {product.description}</p>
-                                <p className="text-sm text-yellow-500">Rating: {product.rate}</p>
+                                <p className="text-sm text-gray-500">Rating: {product.rate}</p>
                                 <p className="text-sm text-gray-500">Year: {product.productionYear}</p>
                                 <p className="text-sm text-green-500">Availability: {product.availability}</p>
+                                <div className="mt-2">
+                                    <label>Rate this product:</label>
+                                    <select
+                                        value={userRatings[product.name] || 0}
+                                        onChange={(e) => handleRateProduct(product.name, parseInt(e.target.value))}
+                                    >
+                                        <option value={0}>0</option>
+                                        <option value={1}>1</option>
+                                        <option value={2}>2</option>
+                                        <option value={3}>3</option>
+                                        <option value={4}>4</option>
+                                        <option value={5}>5</option>
+                                    </select>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
+            </div>
+
+            <div className="mt-4">
+                <h2 className="text-xl text-center my-4">Favorite Websites</h2>
+                <ul className="list-disc list-inside">
+                    {favoriteWebsites.map((website, index) => (
+                        <li key={index}>{website}</li>
+                    ))}
+                </ul>
+                <input
+                    type="text"
+                    placeholder="Add a favorite website"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            handleAddFavoriteWebsite(e.currentTarget.value);
+                            e.currentTarget.value = '';
+                        }
+                    }}
+                />
             </div>
         </>
     );
